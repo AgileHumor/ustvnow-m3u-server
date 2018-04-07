@@ -69,36 +69,10 @@ class MyHandler(BaseHTTPRequestHandler):
             	
             	try:
 
-					data = ustv.get_channels();
-
-					for i in data:
-						name 		= i["name"];
-						sname 		= i["sname"];
-						icon 		= i["icon"];
-						
-						for quality in range(1,4):
-							parameters = urllib.urlencode( { 
-								'c' 		: sname, 
-								'i'			: icon, 
-								'q' 		: str(quality), 
-								'u'			: username, 
-								'p'			: password } );
-								
-							if quality==1:
-								quality_name = 'Low';
-							elif quality==2:
-								quality_name = 'Medium';
-							elif quality==3:
-								quality_name = 'High';
-						
-							EXTM3U += '#EXTINF:-1, tvg-name="' + name + '" tvg-logo="' + icon + '" group-title="' + quality_name + '", ' + name + '\n';
-							EXTM3U += 'http://' + host + '/play'  + base64.b64encode(parameters) +'\n\n';
-						
-						#print 'http://' + host + '/play'  + base64.b64encode(parameters);
-					
+			EXTM3U = ustv.get_chan_new();
             	except Exception as e:
-						EXTM3U += '#EXTINF:-1, tvg-id="Error" tvg-name="Error" tvg-logo="" group-title="Error", ' + str(e) + '\n';
-						EXTM3U += 'http://\n\n';
+			EXTM3U += '#EXTINF:-1, tvg-id="Error" tvg-name="Error" tvg-logo="" group-title="Error", ' + str(e) + '\n';
+			EXTM3U += 'http://\n\n';
         	
         	
                 self.send_response(200)
@@ -133,6 +107,8 @@ class MyHandler(BaseHTTPRequestHandler):
 				
 				try:
 					data = ustv.get_guide();
+
+					print data
 					xml = data.toxml(encoding='utf-8');
 				except Exception as e:
 					xml  = '<?xml version="1.0" encoding="ISO-8859-1"?>'

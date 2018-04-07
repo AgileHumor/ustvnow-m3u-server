@@ -1,22 +1,67 @@
 '''
-    ustvnow
+	ustvnow
 
 '''
+import sys
+import requests
 import cookielib
-import os
 import re
-import urllib, urllib2
 import json
+import os
+import sys
+import random
+import urllib, urllib2
 from xml.dom import minidom
 from time import time
 from datetime import datetime, timedelta
+
+def robust_decode(bs):
+    '''Takes a byte string as param and convert it into a unicode one. First tries UTF8, and fallback to Latin1 if it fails'''
+    bs.decode(errors='replace')
+    cr = None
+    try:
+        cr = bs.decode('utf8')
+    except UnicodeDecodeError:
+        cr = bs.decode('latin1')
+    return cr
 
 class Ustvnow:
 	__BASE_URL = 'http://m.ustvnow.com'
 	def __init__(self, user, password):
 		self.user = user
 		self.password = password
-                    
+		self.mBASE_URL = 'http://m-api.ustvnow.com'
+		self.mcBASE_URL = 'http://mc.ustvnow.com'
+		self.mlBASE_URL = 'https://watch.ustvnow.com'
+
+	def get_chan_new(self, dologin=True):
+		if dologin:
+			self._login()
+
+		result = ""
+
+		self.passkey = self._get_passkey()
+		content = self._get_json('gtv/1/live/listchannels', {'token': self.token})
+#		content = self._get_json('gtv/1/live/playingnow', {'token': self.token})
+		channels = []
+
+		results = content['results']['streamnames'];
+		result += "#EXTM3U\n"
+#		print json.dumps(content);
+
+		for i in results:
+			scode = i['scode']
+			name = i['sname']
+			icon = self.__BASE_URL + '/' + i['img']
+			url = "http://m.ustvnow.com/stream/1/live/view?scode="+scode+"&token="+self.token+"&br_n=Firefox&pr=ec&tr=expired&pl=vjs&pd=1&br_n=Firefox&br_v=54&br_d=desktop"
+			json = self._get_json('stream/1/live/view', {'token': self.token, 'key': self.passkey, 'scode': i['scode']})
+			stream = json['stream']
+			URL = stream.replace('smil:', 'mp4:').replace('USTVNOW1', 'USTVNOW').replace('USTVNOW', 'USTVNOW' + str(2))
+			result += '#EXTINF:-1, tvg-name="' + name + '" tvg-logo="' + icon + '" group-title="High", ' + name + '\n';
+			result += URL+"\n"
+		return(result.strip("\n"))
+
+
 	def get_channels(self, dologin=True):
 		if dologin:
 			self._login()
@@ -134,35 +179,41 @@ class Ustvnow:
 		
 		return doc  
 
-    
 	def _build_url(self, path, queries={}):
 		if queries:
 			query = urllib.urlencode(queries)
-			return '%s/%s?%s' % (self.__BASE_URL, path, query) 
+			return '%s/%s?%s' % (self.mBASE_URL, path, query)
 		else:
-			return '%s/%s' % (self.__BASE_URL, path)
+			return '%s/%s' % (self.mBASE_URL, path)
+
+	def _build_json(self, path, queries={}):
+		if queries:
+			query = urllib.urlencode(queries)
+			return '%s/%s?%s' % (self.mBASE_URL, path, query)
+		else:
+			return '%s/%s' % (self.mBASE_URL, path)
 
 	def _fetch(self, url, form_data=False):
+		opener = urllib2.build_opener()
+		opener.addheaders = [('User-agent', 'Mozilla/5.0')]
 		if form_data:
 			req = urllib2.Request(url, form_data)
 		else:
 			req = url
 		try:
-			response = urllib2.urlopen(url)
+			response = opener.open(req)
 			return response
 		except urllib2.URLError, e:
 			return False
-        
+		
 	def _get_json(self, path, queries={}):
 		content = False
-		url = self._build_url(path, queries)
-
+		url = self._build_json(path, queries)
 		response = self._fetch(url)
 		if response:
 			content = json.loads(response.read())
 		else:
 			content = False
-        
 		return content
 		
 	def _get_html(self, path, queries={}):
@@ -174,7 +225,6 @@ class Ustvnow:
 			html = response.read()
 		else:
 			html = False
-
 		return html
 		
 	#TODO this func
@@ -194,20 +244,31 @@ class Ustvnow:
 		
 		return url    
 
+	def _get_passkey(self):
+		passkey = self._get_json('gtv/1/live/viewdvrlist', {'token': self.token})['globalparams']['passkey']
+		return passkey
+
+
 	def _login(self):
-		self.token = None
-		self.cj = cookielib.CookieJar()
-		opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
-        
-		urllib2.install_opener(opener)
-		url = self._build_url('gtv/1/live/login', {'username': self.user, 
-                                               'password': self.password, 
-                                               'device':'gtv', 
-                                               'redir':'0'})
-		response = self._fetch(url)
-        #response = opener.open(url)
-        
-		for cookie in self.cj:
-			print '%s: %s' % (cookie.name, cookie.value)
-			if cookie.name == 'token':
-				self.token = cookie.value
+		with requests.Session() as s:
+				   
+			url=self.mlBASE_URL + "/account/signin"
+			r = s.get(url)
+			html = r.text
+			html = ' '.join(html.split())
+			ultimate_regexp = "(?i)<\/?\w+((\s+\w+(\s*=\s*(?:\".*?\"|'.*?'|[^'\">\s]+))?)+\s*|\s*)\/?>"
+			for match in re.finditer(ultimate_regexp, html):
+				i = repr(match.group())
+				if '<input type="hidden" name="csrf_ustvnow" value="' in i:
+					csrf = i.replace('<input type="hidden" name="csrf_ustvnow" value="','').replace('">','')
+					csrf = str(csrf).replace("u'","").replace("'","")
+			
+			url = self.mlBASE_URL + "/account/login"
+			payload = {'csrf_ustvnow': csrf, 'signin_email': self.user, 'signin_password':self.password, 'signin_remember':'1'}
+			r = s.post(url, data=payload)
+			html = r.text
+			html = ' '.join(html.split())
+			html = html[html.find('var token = "')+len('var token = "'):]
+			html = html[:html.find(';')-1]
+			token = str(html)
+			self.token = token
