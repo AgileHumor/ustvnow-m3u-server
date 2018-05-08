@@ -132,8 +132,8 @@ class Ustvnow:
 					
 		
 			pg_entry = doc.createElement('programme');
-			pg_entry.setAttribute("start", start_time.strftime('%Y%m%d%H%M%S 0'));
-			pg_entry.setAttribute("stop", stop_time.strftime('%Y%m%d%H%M%S 0'));
+			pg_entry.setAttribute("start", start_time.strftime('%Y%m%d%H%M%S -0700'));
+			pg_entry.setAttribute("stop", stop_time.strftime('%Y%m%d%H%M%S -0700'));
 			pg_entry.setAttribute("channel", programme['callsign']);
 			base.appendChild(pg_entry);
 		
