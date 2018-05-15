@@ -52,12 +52,40 @@ class Ustvnow:
 		for i in results:
 			scode = i['scode']
 			name = i['sname']
+	
+			if name == "ABC":
+				tvgname = "WHTM"
+			elif name == "BBCA":
+				tvgname = "BBC America"
+			elif name == "CBS":
+				tvgname = "WHP"
+			elif name == "CW":
+				tvgname = "WXBU"
+			elif name == "Discovery Channel":
+				tvgname = "The Discovery Channel"
+			elif name == "FOX":
+				tvgname = "WPMT"
+			elif name == "My9":
+				tvgname = "WHVLLP (WHVL-LP)"
+			elif name == "NBC":
+				tvgname = "WGAL"
+			elif name == "PBS":
+				tvgname = "WPSU"
+			elif name == "SundanceTV":
+				tvgname = "SundanceTV HD"
+			elif name == "USA":
+				tvgname = "USA Network HD"
+			elif name == "National Geographic Channel":
+				tvgname = "National Geographic HD"
+			else:
+				tvgname = name
+				
 			icon = self.__BASE_URL + '/' + i['img']
 			url = "http://m.ustvnow.com/stream/1/live/view?scode="+scode+"&token="+self.token+"&br_n=Firefox&pr=ec&tr=expired&pl=vjs&pd=1&br_n=Firefox&br_v=54&br_d=desktop"
 			json = self._get_json('stream/1/live/view', {'token': self.token, 'key': self.passkey, 'scode': i['scode']})
 			stream = json['stream']
 			URL = stream.replace('smil:', 'mp4:').replace('USTVNOW1', 'USTVNOW').replace('USTVNOW', 'USTVNOW' + str(2))
-			result += '#EXTINF:-1, tvg-name="' + name + '" tvg-logo="' + icon + '" group-title="High", ' + name + '\n';
+			result += '#EXTINF:0, tvg-name="' + tvgname + '" tvg-logo="' + icon + '" group-title="High", ' + name + '\n';
 			result += URL+"\n"
 		return(result.strip("\n"))
 
